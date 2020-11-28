@@ -1,0 +1,85 @@
+---
+title: "Cloudword"
+author: "Joffrey JOUMAA"
+date: "`r format(Sys.Date(), format = '%d %B %Y')`"
+output:
+  bookdown::html_document2:
+    number_sections: yes
+    code_folding: hide
+    df_print: default
+    fig_caption: yes
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: no
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  fig.align = "center",
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE,
+  comment = NA
+)
+```
+
+# Import des données et configuration de l'environnement de travail
+
+## Chargement des librairies
+
+```{r load_libraries}
+library(data.table)
+library(ggplot2)
+library(wordcloud)
+library(wordcloud2)
+library(htmlwidgets)
+library(webshot)
+```
+
+## Chargement des données
+
+```{r load_output}
+# on charge les données
+dataset = readRDS(here::here("output","mots.rds"))
+```
+
+# Nuage de mot
+
+```{r firstWordcloud}
+# without mask
+wordcloud(dataset[, word], 
+          dataset[, freq], 
+          max.words=200, 
+          random.order=FALSE, 
+          rot.per=0.35, 
+          scale=c(2.5,0.25)*1.4,
+          colors=brewer.pal(8, "Dark2"))
+```
+
+
+```{r secondWordcloud}
+# with mask
+wc = wordcloud2(dataset[1:200,], 
+                size = 0.4,
+                figPath = here::here("data", "caretta_mask.png"), 
+                fontFamily = "Roboto", 
+                color = sample(c("#002D29","#014641","#016058", "#01796F", "#019286","#01AC9D", "#02C5B5"), 
+                               nrow(dataset), 
+                               replace = T))
+#https://www.colorhexa.com/01796f
+
+# save as html
+saveWidget(wc, here::here("output", "caretta.html"), selfcontained = F)
+
+# save the html as png
+webshot(here::here("output", "caretta.html"), 
+        here::here("output", "caretta.png"),
+        vwidth = 700, 
+        vheight = 500, 
+        delay = 30)
+```
+
+
