@@ -28,6 +28,18 @@ knitr::opts_chunk$set(
 
 # Import des données et configuration de l'environnement de travail
 
+## Environnement python
+
+```{r}
+library(reticulate)
+# py_install(c("numpy", 
+#              "pandas",
+#              "wordcloud",
+#              "matplotlib",
+#              "svglib",
+#              "reportlab"))
+```
+
 ## Chargement des librairies
 
 ```{r load_libraries}
@@ -39,6 +51,17 @@ library(htmlwidgets)
 library(webshot)
 ```
 
+
+```{python}
+import numpy as np
+import pandas as pd
+import os
+from PIL import Image
+from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
+import matplotlib.pyplot as plt
+from svglib.svglib import svg2rlg
+from reportlab.graphics import renderPDF
+```
 ## Chargement des données
 
 ```{r load_output}
@@ -49,37 +72,94 @@ dataset = readRDS(here::here("output","mots.rds"))
 # Nuage de mot
 
 ```{r firstWordcloud}
+# random words
+ind_words = sample(seq(1, nrow(dataset)), 200)
+
 # without mask
-wordcloud(dataset[, word], 
-          dataset[, freq], 
-          max.words=200, 
+wordcloud(dataset[ind_words, word], 
+          dataset[ind_words, freq],
           random.order=FALSE, 
           rot.per=0.35, 
           scale=c(2.5,0.25)*1.4,
           colors=brewer.pal(8, "Dark2"))
 ```
 
+```{python inpython}
+# Create and generate a word cloud image:
+text = r.dataset.set_index("word").to_dict()['freq']
 
-```{r secondWordcloud}
-# with mask
-wc = wordcloud2(dataset[1:200,], 
-                size = 0.4,
-                figPath = here::here("data", "caretta_mask.png"), 
-                fontFamily = "Roboto", 
-                color = sample(c("#002D29","#014641","#016058", "#01796F", "#019286","#01AC9D", "#02C5B5"), 
-                               nrow(dataset), 
-                               replace = T))
-#https://www.colorhexa.com/01796f
+# creation d'un mask
+caretta_mask = np.array(Image.open("../data/caretta_mask.png"))
 
-# save as html
-saveWidget(wc, here::here("output", "caretta.html"), selfcontained = F)
+# small function to return 255
+def transform_format(val):
+  if val == 0:
+    return 255
+  else:
+    return 1
 
-# save the html as png
-webshot(here::here("output", "caretta.html"), 
-        here::here("output", "caretta.png"),
-        vwidth = 700, 
-        vheight = 500, 
-        delay = 30)
+# Transform your mask into a new one that will work with the function:
+caretta_mask_transform = np.ndarray((caretta_mask.shape[0],caretta_mask.shape[1]), np.int32)
+
+# attention à bien choisir le bon channel de l'image, ici le dernier (3)
+for i in range(len(caretta_mask)):
+  caretta_mask_transform[i] = list(map(transform_format, caretta_mask[i,:,3]))
+
+# Create a word cloud image
+# change colormap: https://matplotlib.org/tutorials/colors/colormaps.html
+wc = WordCloud(background_color="white", \
+                max_words= 500, \
+                mask=caretta_mask_transform, \
+                repeat = True, \
+                prefer_horizontal = 1, \
+                relative_scaling=1, \
+                colormap="viridis")
+
+# generate a cloudword
+wc.generate_from_frequencies(text)
+
+# store to file
+wc.to_file("../output/test.png")
+
+# save as svg
+test = wc.to_svg()
+f = open("../output/test.svg","w+")
+f.write(test)
+f.close()
+
+# then save as pdf
+drawing = svg2rlg("../output/test.svg")
+renderPDF.drawToFile(drawing, "../output/test.pdf")
+
+# show
+plt.figure(figsize=(40,40))
+plt.imshow(wc, interpolation='bilinear')
+plt.axis("off")
+plt.show()
 ```
 
 
+```{r secondWordcloud}
+# # with mask
+# wc = wordcloud2(dataset[1:200,], 
+#                 size = 0.4,
+#                 figPath = here::here("data", "caretta_mask.png"), 
+#                 fontFamily = "Roboto", 
+#                 color = sample(c("#002D29","#014641","#016058", "#01796F", "#019286","#01AC9D", "#02C5B5"), 
+#                                nrow(dataset), 
+#                                replace = T))
+# #https://www.colorhexa.com/01796f
+# 
+# # save as html
+# saveWidget(wc, here::here("output", "caretta.html"), selfcontained = F)
+# 
+# # save the html as png
+# webshot(here::here("output", "caretta.html"), 
+#         here::here("output", "caretta.png"),
+#         vwidth = 700, 
+#         vheight = 500, 
+# delay = 30)
+```
+    
+    
+    
